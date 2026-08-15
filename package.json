@@ -1,0 +1,14 @@
+{
+  "name": "aesthetic-clinic-saas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant aesthetic clinic SaaS",
+  "scripts": {
+    "build": "pnpm --filter @aesthetic/api build",
+    "dev:api": "pnpm --filter @aesthetic/api dev",
+    "test": "pnpm --filter @aesthetic/api test",
+    "test:watch": "pnpm --filter @aesthetic/api test:watch",
+    "db:generate": "pnpm --filter @aesthetic/api db:generate"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

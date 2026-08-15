@@ -1,0 +1,249 @@
+I have created the markdown archive for your Cursor environment and saved it as a skill file.
+
+### Document Created
+
+* **File Name / Skill Name:** `aesthetic-clinic-saas-blueprint`
+* **Contents:**
+1. **Strategic & Market Assessment:** Refined value proposition, MVP vs non-MVP features, Venezuelan market adaptation rules.
+2. **Complete Technology Stack:** Next.js / React Native (Expo), NestJS, PostgreSQL, Supabase RLS, Redis.
+3. **Production PostgreSQL DDL (`schema.sql`):** Fully isolated multi-tenant relational schema with `tenant_id`, multi-currency transactions, before/after photo vault, and per-procedure inventory tracking recipes.
+4. **PostgreSQL Row-Level Security (RLS) Policies:** Isolation rules across all tables.
+5. **NestJS / Node.js Context Middleware Code Snippet:** Automated `app.current_tenant_id` session setup per request.
+6. **GTM & Monetization Plan:** Tiered pricing structure, setup fees, and local payment collection mechanics.
+
+
+
+You can import or reference this directly in your IDE or Cursor workspace.
+
+Aesthetic Clinic SaaS (Venezuela / LatAm) — Complete Technical & Product Specification
+This document contains the complete strategic, operational, and technical blueprint for building a B2B multi-tenant SaaS tailored for aesthetic clinics, medspas, and beauty SMBs in Latin America and Venezuela.
+
+1. Executive Summary & Market Strategy
+Target Audience
+Aesthetic Clinics & Medspas
+Cosmetic Dermatology Centers
+Independent Aesthetic Doctors, Lash/Skin Specialists
+Primary Value Proposition (The "Pain Killers")
+In high-cash, inflationary, or complex payment ecosystems (like Venezuela), SMB owners pay for software that stops financial leakage and drives immediate operational control.
+
+Multi-Currency Cash Register (Caja Multi-Moneda): Handles mixed payments per transaction across Zelle, Pago Móvil, Cash USD, Cash VES (BCV rate), and USDT.
+Procedure-Level Inventory Tracking: Deducts consumables (ml of fillers, toxins, threads, cartridges) per session to eliminate theft and material waste.
+Automated WhatsApp Booking & Deposits: Confirms appointments and collects deposits via Pago Móvil/Zelle to reduce no-shows.
+Automated Commission Payroll: Instant calculation of complex variable commissions for specialists/doctors (e.g., % of procedure minus material cost).
+Lightweight Patient History & Photo Vault: Visual treatment logs, before/after photos, and digital liability consents signed on-screen.
+Excluded Features for MVP (Do Not Build)
+Complex AI Business Advisory / High-Level Analytics (Low willingness to pay initially).
+Full Medical EMRs with heavy ICD-10 coding.
+Multi-page complex intake forms (keep form completion fast and mobile-friendly).
+2. Technology Stack Architecture
+Layer	Technology	Rationale
+Frontend Web	Next.js 14+ (App Router, TS)	Fast SSR/SSG, SEO for marketing, clean developer workflow.
+Mobile / Tablet App	Expo / React Native	Crucial for clinic floor usage (taking before/after photos on iPad/mobile, mobile check-ins).
+Styling & UI Components	Tailwind CSS + Shadcn UI	Accessible, highly customizable, lightweight for slower internet connections.
+Backend API	NestJS or Next.js Server Actions	NestJS provides enterprise-grade structure, module boundaries, and dependency injection.
+Database & Security	PostgreSQL + Supabase RLS	Relational integrity, built-in Row-Level Security for multi-tenant isolation, Auth, and Storage.
+Cache & Queue	Redis (Upstash)	Rate limiting, queuing WhatsApp notification jobs, caching live BCV exchange rates.
+File Storage	Supabase Storage / AWS S3	Encrypted image storage with CDN distribution for before/after photos.
+3. Multi-Tenant Architecture & Database Schema
+Multi-Tenancy Strategy
+Pattern: Shared Database, Shared Schema with PostgreSQL Row-Level Security (RLS).
+Isolation: Every single database table contains a tenant_id UUID foreign key referencing the tenants table.
+Security: Contextual JWT-based tenant_id injection into the database session using PostgreSQL RLS policies.
+Complete PostgreSQL Schema (DDL)
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ============================================================================
+-- 1. TENANTS & USERS
+-- ============================================================================
+
+CREATE TABLE tenants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    tax_id VARCHAR(50), -- RIF in Venezuela (e.g., J-12345678-0)
+    primary_currency VARCHAR(3) DEFAULT 'USD',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('ADMIN', 'SPECIALIST', 'RECEPTIONIST')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, email)
+);
+
+-- ============================================================================
+-- 2. PATIENTS & CLINICAL HISTORY
+-- ============================================================================
+
+CREATE TABLE patients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(50) NOT NULL, -- Format: +58...
+    national_id VARCHAR(50), -- CI / Passport
+    medical_alerts TEXT, -- Allergies (Lidocaine, Latex), conditions
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE patient_photos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    appointment_id UUID, -- Optional link to specific visit
+    photo_type VARCHAR(20) NOT NULL CHECK (photo_type IN ('BEFORE', 'AFTER', 'OTHER')),
+    storage_path TEXT NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE digital_consents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    procedure_name VARCHAR(255) NOT NULL,
+    signature_storage_path TEXT NOT NULL,
+    signed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 3. SERVICES & INVENTORY
+-- ============================================================================
+
+CREATE TABLE services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    base_price_usd NUMERIC(10, 2) NOT NULL,
+    estimated_duration_minutes INT DEFAULT 30,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE inventory_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    product_name VARCHAR(255) NOT NULL,
+    unit_of_measure VARCHAR(50) NOT NULL, -- e.g., 'ml', 'units', 'syringes', 'vials'
+    current_stock NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    min_stock_alert NUMERIC(10, 2) DEFAULT 5.00,
+    cost_per_unit_usd NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Recipe mapping: How much inventory a service consumes
+CREATE TABLE service_inventory_recipes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    inventory_item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+    quantity_required NUMERIC(10, 2) NOT NULL
+);
+
+-- ============================================================================
+-- 4. APPOINTMENTS & TRANSACTIONS (Caja Multi-Moneda)
+-- ============================================================================
+
+CREATE TABLE appointments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES patients(id),
+    specialist_id UUID NOT NULL REFERENCES users(id),
+    service_id UUID NOT NULL REFERENCES services(id),
+    status VARCHAR(50) DEFAULT 'SCHEDULED' CHECK (status IN ('SCHEDULED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW')),
+    scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    appointment_id UUID REFERENCES appointments(id),
+    patient_id UUID REFERENCES patients(id),
+    amount_usd NUMERIC(10, 2) NOT NULL,
+    bcv_exchange_rate NUMERIC(12, 4) NOT NULL, -- Rate recorded at exact moment of checkout
+    payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('ZELLE', 'PAGO_MOVIL', 'CASH_USD', 'CASH_VES', 'BINANCE_USDT', 'POS_VES')),
+    reference_number VARCHAR(100),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE digital_consents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_inventory_recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- Dynamic Tenant Isolation Policy Example
+CREATE POLICY tenant_isolation_users ON users FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_patients ON patients FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_photos ON patient_photos FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_consents ON digital_consents FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_services ON services FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_inventory ON inventory_items FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_recipes ON service_inventory_recipes FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_appointments ON appointments FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_transactions ON transactions FOR ALL
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+4. Middleware Implementation for Tenant Isolation
+When executing database operations (e.g., via NestJS middleware or Prisma/Drizzle interceptors), set the session parameter app.current_tenant_id based on the authenticated JWT:
+
+// Example NestJS / Express Middleware for RLS Tenant Context
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import { DataSource } from 'typeorm';
+
+@Injectable admonition
+export class TenantContextMiddleware implements NestMiddleware {
+  constructor(private readonly dataSource: DataSource) {}
+
+  async use(req: Request, res: Response, next: NextFunction) {
+    const tenantId = req.user?.tenant_id; // Extracted from JWT token payload
+
+    if (tenantId) {
+      // Set local config parameter for the scope of the DB connection/transaction
+      await this.dataSource.query(
+        `SELECT set_config('app.current_tenant_id', $1, true)`,
+        [tenantId]
+      );
+    }
+
+    next();
+  }
+}
+5. Monetization & Go-To-Market Execution
+Pricing:
+Starter Plan: $29/month (1 location, 2 calendars, multi-currency cash register).
+Pro Plan: $59/month (Automated WhatsApp reminders, procedure-level inventory deduction, commission reports).
+Onboarding Fee: $100–$200 one-time fee for initial database loading, inventory setup, and staff training.
+Payment Processing: Accept Zelle, Pago Móvil, USDT, or Cash annually upfront (15-20% discount offered for annual prepayments to secure upfront liquidity).
+GTM Focus: Direct outreach via Instagram DM and local boots-on-the-ground visits to key commercial nodes (Caracas: Las Mercedes, Chacao, El Hatillo; Valencia, Maracaibo).

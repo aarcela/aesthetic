@@ -1,7 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import { assertTenantManager } from '../src/tenants/tenant-context.js';
 import { FxRateCache } from '../src/fx/fx-rate.cache.js';
 import { FxService } from '../src/fx/fx.service.js';
 
@@ -68,14 +66,5 @@ describe('FxService', () => {
 
     expect(initial.vesPerUsd).toBe('100.000000');
     expect(initial).not.toBe(await service.createSaleSnapshot('tenant-a'));
-  });
-
-  it('rejects non-manager roles from changing the source', () => {
-    expect(() =>
-      assertTenantManager({ tenantId: 'tenant-a', role: 'RECEPTIONIST' }),
-    ).toThrow(ForbiddenException);
-    expect(() =>
-      assertTenantManager({ tenantId: 'tenant-a', role: 'SPECIALIST' }),
-    ).toThrow(ForbiddenException);
   });
 });

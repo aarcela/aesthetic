@@ -6,19 +6,45 @@ node_modules/
 dist/
 build/
 out/
+.next/
+.nuxt/
 *.tsbuildinfo
+next-env.d.ts
 
 # Environment & secrets
 .env
 .env.*
+.envrc
+.env.keys
 !.env.example
 !.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*.ppk
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.secret
+secrets/
+credentials.json
+**/service-account*.json
+**/google-services.json
+GoogleService-Info.plist
 
 # Logs & debug
 logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+.pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
@@ -27,16 +53,39 @@ coverage/
 .nyc_output/
 .vitest/
 *.lcov
+playwright-report/
+test-results/
+blob-report/
 
 # Caches
 .cache/
 .turbo/
 .eslintcache
 .stylelintcache
+__pycache__/
+*.py[cod]
+.venv/
+venv/
 
 # Supabase local
 supabase/.branches
 supabase/.temp
+supabase/.env
+
+# DB dumps & backups
+*.sql.gz
+*.dump
+dump.sql
+*.bak
+*.orig
+*.tmp
+
+# Local agent skill installs (not app source)
+.agents/
+skills-lock.json
+
+# Cloud Run env file with secrets
+**/cloudrun.env.yaml
 
 # OS
 .DS_Store
@@ -55,8 +104,13 @@ Desktop.ini
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # Misc
 *.local
 .direnv/
 .vercel/
+tmp/
+temp/

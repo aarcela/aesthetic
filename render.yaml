@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: aesthetic-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: PG_POOL_MAX
+        value: 5
+      - key: SUPABASE_MEDIA_BUCKET
+        value: patient-media
+      - key: ALLOW_TENANT_BOOTSTRAP
+        value: true
+      - key: WEB_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

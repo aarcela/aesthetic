@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import type { FxFuente, FxRateSnapshot } from '@aesthetic/shared';
 
 import { DolarApiClient, type DolarApiObservation } from './dolar-api.client.js';
@@ -11,9 +11,9 @@ const SOURCES: FxFuente[] = ['oficial', 'paralelo'];
 @Injectable()
 export class FxService {
   constructor(
-    private readonly dolarApi: DolarApiClient,
-    private readonly cache: FxRateCache,
-    private readonly repository: FxRepository,
+    @Inject(DolarApiClient) private readonly dolarApi: DolarApiClient,
+    @Inject(FxRateCache) private readonly cache: FxRateCache,
+    @Inject(FxRepository) private readonly repository: FxRepository,
   ) {}
 
   async getCurrentRates(): Promise<Record<FxFuente, FxRateSnapshot>> {
@@ -62,7 +62,7 @@ export class FxService {
 
   async updateTenantSource(tenantId: string, fuente: FxFuente): Promise<FxRateSnapshot> {
     await this.repository.setTenantFxFuente(tenantId, fuente);
-    return this.getRateSnapshotForFuente(fuente);
+    return this.getSnapshotForFuente(fuente);
   }
 
   /**
@@ -71,10 +71,10 @@ export class FxService {
    */
   async createSaleSnapshot(tenantId: string): Promise<FxRateSnapshot> {
     const fuente = await this.repository.getTenantFxFuente(tenantId);
-    return this.getRateSnapshotForFuente(fuente);
+    return this.getSnapshotForFuente(fuente);
   }
 
-  private async getRateSnapshotForFuente(fuente: FxFuente): Promise<FxRateSnapshot> {
+  async getSnapshotForFuente(fuente: FxFuente): Promise<FxRateSnapshot> {
     const rates = await this.getCurrentRates();
     const rate = rates[fuente];
     if (!rate || !this.isFresh(rate)) {

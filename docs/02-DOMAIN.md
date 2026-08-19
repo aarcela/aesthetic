@@ -36,9 +36,14 @@ Platform role `SUPER_ADMIN` is outside tenant RLS (service role / separate admin
 
 ## Inventory
 
+- Each item has a commercial presentation: `package_capacity` + `unit_of_measure` (e.g. 1000 ml, 50 g, 1 ml). Stock and recipes use that same unit.  
+- **Kind** (`item_kind`):  
+  - `MATERIAL` — consumed on a **visit** (fillers, toxinas, gasas). Never sold as a line of product.  
+  - `RETAIL` — **producto para venta**. Sold in Finanzas (ingress “Venta de productos”); deducts stock as `RETAIL_SALE`. Not used on visits or recipes.  
+- Retail items may store `sale_price_usd` (list price). Materials use `cost_per_unit_usd` for commission math.  
 - Stock is stored in `inventory_items.current_stock` **and** every change is an `inventory_movements` row.  
-- Movement types: `PURCHASE`, `ADJUSTMENT`, `PROCEDURE_CONSUME`, `PROCEDURE_REVERSE`, `TRANSFER` (post-MVP).  
-- Procedure consume is linked to `sale_line_item_id` (and optionally `appointment_item_id`).  
+- Movement types: `PURCHASE`, `ADJUSTMENT`, `PROCEDURE_CONSUME`, `PROCEDURE_REVERSE`, `RETAIL_SALE`, `RETAIL_REVERSE`, `TRANSFER` (post-MVP).  
+- Procedure consume is linked to `sale_line_item_id` (and optionally `appointment_item_id`). Retail sale is linked to `finance_movement_id`.  
 - Rule: refuse consume if resulting stock < 0 unless `allow_negative_stock` override with reason.  
 - Cost for commissions: use `cost_per_unit_usd` on the item at time of consume (snapshot onto movement).
 
@@ -53,11 +58,13 @@ SCHEDULED → CONFIRMED → COMPLETED
 ```
 
 - An appointment is a **header** (patient, location, time window, status, deposits).  
+- **Visit** is not a separate table: it is the same appointment after the patient attended (`COMPLETED`). Photos, materials, and clinical notes attach to `appointment_id`.  
+- Marking attendance (`COMPLETED`) or posting the linked sale **creates that visit**. Walk-in visit = appointment inserted already `COMPLETED` (no prior booking).  
 - **`appointment_items`**: one or more rows — `service_id`, `specialist_id`, `unit_price_usd`, `sort_order`, optional notes.  
 - Duration estimate = sum of item service durations (for calendar blocking).  
 - Deposit may be required on the appointment header (`deposit_required_usd`, `deposit_status`: `none | pending | paid | waived`).  
 - Completing an appointment (or posting its sale) triggers per-line inventory consume + commission entries.  
-- Cancel / no-show does not consume inventory; deposit policy is configurable (forfeit vs refund note—MVP: manual status only).
+- Cancel / no-show are **not** visits and do not consume inventory; deposit policy is configurable (forfeit vs refund note—MVP: manual status only).
 
 ## Caja multi-moneda (payments)
 
@@ -70,17 +77,19 @@ SCHEDULED → CONFIRMED → COMPLETED
 - At checkout post, system snapshots FX from DolarApi (see FX section).  
 - **Payment legs** (`sale_payments`): one or more rows summing to the sale total (in USD equivalent).
 
-### Payment methods (MVP)
+### Payment methods (per clinic)
+
+Each tenant has an editable catalog (`tenant_payment_methods`). Defaults seed as:
 
 `ZELLE | PAGO_MOVIL | CASH_USD | CASH_VES | BINANCE_USDT | POS_VES`
 
-### Conversion rules
+OWNER/ADMIN may rename, hide, or add methods. Conversion is by **native currency**, not by code:
 
-| Method | Amount entered | USD equivalent |
-|--------|----------------|----------------|
-| `CASH_USD`, `ZELLE` | USD | as entered |
-| `BINANCE_USDT` | USDT | **1:1 with USD** (DolarApi has no USDT rate; face value) |
-| `CASH_VES`, `PAGO_MOVIL`, `POS_VES` | VES | `amount_ves / fx_rate_snapshot` |
+| Native currency | Amount entered | USD equivalent |
+|-----------------|----------------|----------------|
+| `USD` | USD | as entered |
+| `USDT` | USDT | **1:1 with USD** (DolarApi has no USDT rate; face value) |
+| `VES` | VES | `amount_ves / fx_rate_snapshot` |
 
 - `fx_rate_snapshot` = DolarApi `promedio` for the tenant’s chosen `fuente` (`oficial` or `paralelo`) at post time.  
 - Sum of USD equivalents of legs must equal `sales.amount_usd` within 0.01 USD tolerance.  
@@ -91,6 +100,15 @@ SCHEDULED → CONFIRMED → COMPLETED
 
 - Report: sum by method for date + location; USD total; VES total collected.  
 - Full “arqueo” with expected cash drawer is Phase 2.
+
+## Finanzas (cash book)
+
+- **Caja** = patient checkout (services + split payments).  
+- **Finanzas** = clinic libro de dinero for money that **entra** (ingress) or **sale** (egress), with editable types per direction.  
+- Product sales (cremas, kits, retail) are recorded as Finanzas **entra**, optionally linked to a `RETAIL` inventory item so stock drops. Materials used on visits never go through Finanzas as a sale.  
+- Each movement stores `amount_native` + `amount_usd_equivalent` (VES via FX snapshot; USDT 1:1).  
+- Soft-void keeps audit. Optional `sale_id` reserved for later auto-link from posted sales.  
+- UI language: Entra / Sale / Neto — no debit/credit jargon.
 
 ## Commissions
 

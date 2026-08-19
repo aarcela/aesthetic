@@ -93,6 +93,11 @@ Still open before scaffold: brand name, WhatsApp provider (Cloud API vs BSP), Sa
 | [docs/06-MONETIZATION-GTM.md](./docs/06-MONETIZATION-GTM.md) | Pricing, onboarding fees, GTM |
 | [docs/07-ROADMAP.md](./docs/07-ROADMAP.md) | Phased delivery & definition of done |
 | [docs/08-FX-FOUNDATION.md](./docs/08-FX-FOUNDATION.md) | Implemented DolarApi FX selection, endpoints, and operating rules |
+| [docs/09-SUPABASE-SETUP.md](./docs/09-SUPABASE-SETUP.md) | Connect cloud project, push migrations, bootstrap first clinic |
+| [docs/10-AGENDA-CAJA.md](./docs/10-AGENDA-CAJA.md) | Appointments, sales, split payments, daily caja |
+| [docs/11-BACKEND-COMPLETE.md](./docs/11-BACKEND-COMPLETE.md) | Phases 3–6 inventory, commissions, media, messaging, plans |
+| [docs/12-WEB-APP.md](./docs/12-WEB-APP.md) | Next.js clinic UI |
+| [docs/13-RENDER.md](./docs/13-RENDER.md) | Deploy Nest API to Render |
 
 ## 7. Critical gaps fixed vs original draft
 

@@ -2,15 +2,16 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { updateFxSourceSchema } from '@aesthetic/shared';
 
+import { AuthGuard } from '../auth/auth.guard.js';
 import {
   assertTenantManager,
-  TenantContextGuard,
   type TenantContext,
 } from '../tenants/tenant-context.js';
 import { FxService } from './fx.service.js';
@@ -18,9 +19,9 @@ import { FxService } from './fx.service.js';
 type TenantRequest = { tenantContext?: TenantContext };
 
 @Controller('v1')
-@UseGuards(TenantContextGuard)
+@UseGuards(AuthGuard)
 export class FxController {
-  constructor(private readonly fxService: FxService) {}
+  constructor(@Inject(FxService) private readonly fxService: FxService) {}
 
   @Get('fx/rates')
   async getRates(@Req() request: TenantRequest) {
@@ -31,6 +32,7 @@ export class FxController {
   @Get('tenant-settings/fx-source')
   async getTenantSource(@Req() request: TenantRequest) {
     const context = this.contextOf(request);
+    assertTenantManager(context);
     const view = await this.fxService.getTenantRateView(context.tenantId);
     return {
       fuente: view.selectedFuente,
@@ -55,8 +57,7 @@ export class FxController {
 
   private contextOf(request: TenantRequest): TenantContext {
     if (!request.tenantContext) {
-      // The guard always sets this; preserve a fail-closed guardrail.
-      throw new Error('Tenant context was not attached by the guard.');
+      throw new Error('Tenant context was not attached by the auth guard.');
     }
     return request.tenantContext;
   }

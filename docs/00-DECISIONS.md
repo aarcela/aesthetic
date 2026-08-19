@@ -10,6 +10,8 @@ Decisions below supersede earlier “open questions” in older draft wording.
 | 2026-08-13 | FX provider | **DolarApi VE** | Base `https://ve.dolarapi.com` — see domain FX section |
 | 2026-08-13 | Photos on Starter | **Yes** | Photo vault on both tiers |
 | 2026-08-13 | Pro gates | Inventory recipes + commissions + WhatsApp | Consents + photos on Starter too |
+| 2026-08-16 | Finanzas | **Cash book** Entra/Sale | Separate from Caja POS; editable types; future `sale_id` link |
+| 2026-08-17 | Payment methods | **Per-clinic catalog** | Rename/hide/add methods; conversion by native currency |
 
 ## DolarApi integration (locked)
 

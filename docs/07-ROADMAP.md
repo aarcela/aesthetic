@@ -19,57 +19,59 @@ No application code until Phase 0 decisions below are accepted.
 
 ## Phase 1 — Foundation
 
-- Monorepo scaffold: `api`, `web` (Drizzle + NestJS + Next.js)  
-- Auth (Supabase) + memberships + roles  
-- Tenants + locations CRUD (`default_fx_fuente`)  
-- Patients CRUD  
-- Services CRUD  
+- [x] Monorepo scaffold: `api` (Drizzle + NestJS); web still pending  
+- [x] Auth (Supabase) + memberships + roles  
+- [x] Tenants bootstrap + primary location + FX settings  
+- [x] Patients CRUD  
+- [x] Services CRUD  
 
-**DoD:** Owner can invite receptionist; both only see own tenant patients.
+**DoD:** Owner can invite receptionist; both only see own tenant patients. *(Invites still pending; CRUD + tenant isolation via RLS context are in place.)*
 
 ## Phase 2 — Agenda + Caja
 
-- Appointments + **appointment_items** (multi-service)  
-- Walk-in sales (no appointment)  
-- **sale_line_items** + split `sale_payments`  
-- DolarApi FX service + immutable sale snapshot  
-- Daily caja report  
+- [x] Appointments + **appointment_items** (multi-service)  
+- [x] Walk-in sales (no appointment)  
+- [x] **sale_line_items** + split `sale_payments`  
+- [x] DolarApi FX service + immutable sale snapshot on post  
+- [x] Daily caja report  
 
 **DoD:** Mixed Zelle + Cash VES checkout with 2+ line items posts correctly; day report matches legs.
 
 ## Phase 3 — Inventory + commissions
 
-- Inventory items, recipes  
-- Consume **per sale line** + movements ledger  
-- Low-stock alerts  
-- Commission rules + entries + period report  
+- [x] Inventory items, recipes  
+- [x] Consume **per sale line** + movements ledger (on Pro sale post)  
+- [x] Low-stock alerts  
+- [x] Commission rules + entries + period report  
 
 **DoD:** Completing a multi-service sale deducts ml per line and produces commission lines.
 
 ## Phase 4 — Media, consents, WhatsApp
 
-- Photo upload flows (web + Expo start) — available on Starter+  
-- Digital consents  
-- Message outbox + reminders (Pro gate)  
-- Deposit status fields wired to messaging  
+- [x] Photo signed upload URLs + metadata  
+- [x] Digital consents signed upload URLs + metadata  
+- [x] Message outbox + reminder enqueue + stub processor (Pro)  
+- [ ] Real WhatsApp Cloud API provider (deferred; outbox ready)  
 
-**DoD:** Reminder job sends for tomorrow’s appointments; consent stored against patient.
+**DoD:** Reminder jobs can be enqueued/processed; consent stored against patient.
 
 ## Phase 5 — Mobile floor polish + GTM readiness
 
-- Expo: today’s list, capture before/after, sign consent, quick checkout assist  
-- Plan gating (Starter/Pro) as locked in `06-MONETIZATION-GTM.md`  
-- Concierge onboarding checklist  
-- Staging demo tenant with seed data  
+- [ ] Expo / Next.js UI (frontend — not backend)  
+- [x] Plan gating (Starter/Pro) on API  
+- [ ] Concierge onboarding checklist UI  
+- [ ] Staging demo seed script  
 
-**DoD:** Pilot clinic can run a full day without spreadsheets.
+**DoD:** Pilot clinic can run a full day without spreadsheets *(requires UI)*.
 
 ## Phase 6 — Harden
 
-- Idempotency everywhere money/stock moves  
-- Security checklist from `05-SECURITY.md`  
-- Backups, monitoring, suspension workflow  
-- Performance pass on agenda queries  
+- [x] Idempotency on sale post (`Idempotency-Key`)  
+- [x] Plan/subscription suspension gate  
+- [ ] Production monitoring/backups (ops)  
+- [ ] Broader performance pass  
+
+Backend API for clinic operations is feature-complete for MVP; remaining work is primarily **web/mobile UI** and a real WhatsApp provider.
 
 ## Suggested build order inside each phase
 

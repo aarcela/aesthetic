@@ -24,22 +24,19 @@
 
 ## API
 
-All endpoints are currently protected by a temporary development tenant-context
-adapter. Send these headers:
+Protected routes require a Supabase Auth access token:
 
 ```http
-X-Tenant-Id: <tenant UUID>
-X-Tenant-Role: OWNER | ADMIN | SPECIALIST | RECEPTIONIST
+Authorization: Bearer <supabase_access_token>
 ```
 
-This adapter is deliberately fail-closed but **is not authentication**. The auth
-foundation must replace it with verified Supabase JWT `app_metadata` claims
-before production.
+Tenant + role come from `tenant_memberships` (not from editable `user_metadata`).
+See [09-SUPABASE-SETUP.md](./09-SUPABASE-SETUP.md).
 
 | Method | Route | Access | Result |
 |--------|-------|--------|--------|
-| `GET` | `/api/v1/fx/rates` | Any tenant role | Both current sources + selected source |
-| `GET` | `/api/v1/tenant-settings/fx-source` | Any tenant role | Selected source + current selected rate |
+| `GET` | `/api/v1/fx/rates` | Any active membership | Both current sources + selected source |
+| `GET` | `/api/v1/tenant-settings/fx-source` | Any active membership | Selected source + current selected rate |
 | `PUT` | `/api/v1/tenant-settings/fx-source` | `OWNER`, `ADMIN` | Change selection; body `{ "fuente": "oficial" }` or `paralelo` |
 
 Rates refresh lazily when no fresh cache exists. A cached rate older than 10

@@ -1,50 +1,61 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
+import {
+  canAccessFinance,
+  canAccessSettings,
+  canManageOperations,
+  canManageTeam,
+  type TenantRole,
+} from '@aesthetic/shared';
 
-export const TENANT_CONTEXT = 'tenantContext';
-
-export type TenantRole = 'OWNER' | 'ADMIN' | 'SPECIALIST' | 'RECEPTIONIST';
+export type { TenantRole };
 
 export type TenantContext = {
   tenantId: string;
   role: TenantRole;
+  locationIds?: string[];
 };
 
-/**
- * Temporary boundary adapter for the FX foundation.
- * The auth foundation will replace these headers with verified Supabase JWT
- * app_metadata claims before a public deployment.
- */
-@Injectable()
-export class TenantContextGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    if (process.env.NODE_ENV === 'production') {
-      throw new UnauthorizedException(
-        'Supabase JWT authentication must be configured for production.',
-      );
-    }
-
-    const request = context.switchToHttp().getRequest<{
-      headers: Record<string, string | string[] | undefined>;
-      tenantContext?: TenantContext;
-    }>();
-    const tenantId = request.headers['x-tenant-id'];
-    const role = request.headers['x-tenant-role'];
-
-    if (typeof tenantId !== 'string' || typeof role !== 'string') {
-      throw new UnauthorizedException('Missing tenant context.');
-    }
-
-    if (!['OWNER', 'ADMIN', 'SPECIALIST', 'RECEPTIONIST'].includes(role)) {
-      throw new ForbiddenException('Invalid tenant role.');
-    }
-
-    request.tenantContext = { tenantId, role: role as TenantRole };
-    return true;
+/** OWNER / ADMIN — configuration, billing, and team. Not MANAGER. */
+export function assertTenantManager(context: TenantContext): void {
+  if (!canAccessSettings(context.role)) {
+    throw new ForbiddenException(
+      'Solo dueño o admin pueden cambiar la configuración.',
+    );
   }
 }
 
-export function assertTenantManager(context: TenantContext): void {
-  if (context.role !== 'OWNER' && context.role !== 'ADMIN') {
-    throw new ForbiddenException('Only OWNER or ADMIN can change the FX source.');
+export function assertTeamManager(context: TenantContext): void {
+  if (!canManageTeam(context.role)) {
+    throw new ForbiddenException('Solo dueño o admin pueden gestionar el equipo.');
+  }
+}
+
+/** OWNER / ADMIN / MANAGER — catalog, inventory, and day-to-day clinic ops. */
+export function assertOperationsManager(context: TenantContext): void {
+  if (!canManageOperations(context.role)) {
+    throw new ForbiddenException(
+      'Solo dueño, admin o gerente pueden realizar esta acción.',
+    );
+  }
+}
+
+/** Finanzas cash book. Caja POS is separate. */
+export function assertFinanceAccess(context: TenantContext): void {
+  if (!canAccessFinance(context.role)) {
+    throw new ForbiddenException('No tienes acceso a finanzas.');
+  }
+}
+
+/** OWNER / ADMIN / MANAGER / RECEPTIONIST — visit materials and caja-adjacent writes. */
+export function assertFinanceWriter(context: TenantContext): void {
+  if (
+    context.role !== 'OWNER' &&
+    context.role !== 'ADMIN' &&
+    context.role !== 'MANAGER' &&
+    context.role !== 'RECEPTIONIST'
+  ) {
+    throw new ForbiddenException(
+      'Solo dueño, admin, gerente o recepción pueden registrar este movimiento.',
+    );
   }
 }

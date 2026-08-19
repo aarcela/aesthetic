@@ -2,7 +2,7 @@ import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common'
 import type { FxFuente } from '@aesthetic/shared';
 import { desc, eq, sql } from 'drizzle-orm';
 
-import { DATABASE, type Database } from '../database/database.module.js';
+import { DATABASE, type Database } from '../database/database.tokens.js';
 import { exchangeRates, tenants } from '../database/schema.js';
 import type { DolarApiObservation } from './dolar-api.client.js';
 

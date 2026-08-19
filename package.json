@@ -4,11 +4,18 @@
   "private": true,
   "description": "Multi-tenant aesthetic clinic SaaS",
   "scripts": {
-    "build": "pnpm --filter @aesthetic/api build",
+    "build": "pnpm --filter @aesthetic/shared --filter @aesthetic/api --filter @aesthetic/web -r build",
     "dev:api": "pnpm --filter @aesthetic/api dev",
+    "dev:web": "pnpm --filter @aesthetic/web dev",
+    "dev": "pnpm run dev:api",
     "test": "pnpm --filter @aesthetic/api test",
     "test:watch": "pnpm --filter @aesthetic/api test:watch",
-    "db:generate": "pnpm --filter @aesthetic/api db:generate"
+    "db:generate": "pnpm --filter @aesthetic/api db:generate",
+    "seed:demo": "pnpm exec tsx --env-file=apps/api/.env scripts/seed-demo.ts"
   },
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "pnpm@10.33.2",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "tsx": "^4.23.12"
+  }
 }
